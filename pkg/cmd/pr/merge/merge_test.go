@@ -549,21 +549,17 @@ func TestPRMerge_interactive(t *testing.T) {
 			Value: 0,
 		},
 		{
-			Name:  "deleteBranch",
-			Value: true,
-		},
-		{
 			Name:  "isConfirmed",
 			Value: true,
 		},
 	})
 
-	output, err := runCommand(http, "blueberries", true, "")
+	output, err := runCommand(http, "blueberries", true, "--delete-branch")
 	if err != nil {
 		t.Fatalf("Got unexpected error running `pr merge` %s", err)
 	}
 
-	test.ExpectLines(t, output.Stderr(), "Merged pull request #3")
+	test.ExpectLines(t, output.Stderr(), `Merged pull request #3 \(\)`, `Deleted branch.*blueberries`)
 }
 
 func TestPRMerge_interactiveCancelled(t *testing.T) {
@@ -595,10 +591,6 @@ func TestPRMerge_interactiveCancelled(t *testing.T) {
 		{
 			Name:  "mergeMethod",
 			Value: 0,
-		},
-		{
-			Name:  "deleteBranch",
-			Value: true,
 		},
 		{
 			Name:  "isConfirmed",

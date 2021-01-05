@@ -90,7 +90,7 @@ func NewCmdMerge(f *cmdutil.Factory, runF func(*MergeOptions) error) *cobra.Comm
 				return &cmdutil.FlagError{Err: errors.New("only one of --merge, --rebase, or --squash can be enabled")}
 			}
 
-			opts.DeleteLocalBranch = !cmd.Flags().Changed("repo")
+			opts.DeleteLocalBranch = opts.DeleteLocalBranch || !cmd.Flags().Changed("repo")
 
 			if runF != nil {
 				return runF(opts)
@@ -235,22 +235,17 @@ func prInteractiveMerge(deleteLocalBranch bool, crossRepoPR bool) (api.PullReque
 
 	qs := []*survey.Question{mergeMethodQuestion}
 
-	if !crossRepoPR {
-		var message string
-		if deleteLocalBranch {
-			message = "Delete the branch locally and on GitHub?"
-		} else {
-			message = "Delete the branch on GitHub?"
-		}
-
-		deleteBranchQuestion := &survey.Question{
+	// Prompt for branch deletion if:
+	// 1. The local branch doesn't belong to the remote repo (e.g. it's a fork).
+	// 2. The delete branch flag was not given.
+	if !crossRepoPR && !deleteLocalBranch {
+		qs = append(qs, &survey.Question{
 			Name: "deleteBranch",
 			Prompt: &survey.Confirm{
-				Message: message,
+				Message: "Delete the branch locally and on Github?",
 				Default: false,
 			},
-		}
-		qs = append(qs, deleteBranchQuestion)
+		})
 	}
 
 	qs = append(qs, &survey.Question{
@@ -262,9 +257,9 @@ func prInteractiveMerge(deleteLocalBranch bool, crossRepoPR bool) (api.PullReque
 	})
 
 	answers := struct {
-		MergeMethod  int
-		DeleteBranch bool
-		IsConfirmed  bool
+		MergeMethod  int  `survey:"mergeMethod"`
+		DeleteBranch bool `survey:"deleteBranch"`
+		IsConfirmed  bool `survey:"isConfirmed"`
 	}{}
 
 	err := prompt.SurveyAsk(qs, &answers)
@@ -285,6 +280,6 @@ func prInteractiveMerge(deleteLocalBranch bool, crossRepoPR bool) (api.PullReque
 		mergeMethod = api.PullRequestMergeMethodSquash
 	}
 
-	deleteBranch := answers.DeleteBranch
+	deleteBranch := deleteLocalBranch || answers.DeleteBranch
 	return mergeMethod, deleteBranch, nil
 }
